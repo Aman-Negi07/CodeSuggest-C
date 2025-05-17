@@ -3,6 +3,7 @@
 #include <string.h>
 #include "lexer.h"
 #include "parser.h"
+#include "suggest.h" // Add this at the top
 
 Token tokens[MAX_TOKENS];
 int current = 0;
@@ -89,8 +90,12 @@ int decl()
           match(TOKEN_KEYWORD, "float") ||
           match(TOKEN_KEYWORD, "char") ||
           match(TOKEN_KEYWORD, "double") ||
-          match(TOKEN_KEYWORD, "void")))
+          match(TOKEN_KEYWORD, "void"))) {
+        // Suggest possible correction
+        const char *expectedKeywords[] = {"int", "float", "char", "double", "void"};
+        suggestKeyword(peek().value, expectedKeywords, 5, peek().line);
         syntaxError("Expected type specifier");
+    }
     addEdge(node, tokenNode(tokens[current - 1]));
 
     if (!match(TOKEN_IDENTIFIER, NULL))
@@ -260,8 +265,12 @@ int func_def()
           match(TOKEN_KEYWORD, "float") ||
           match(TOKEN_KEYWORD, "char") ||
           match(TOKEN_KEYWORD, "double") ||
-          match(TOKEN_KEYWORD, "void")))
+          match(TOKEN_KEYWORD, "void"))) {
+        // Suggest possible correction
+        const char *expectedKeywords[] = {"int", "float", "char", "double", "void"};
+        suggestKeyword(peek().value, expectedKeywords, 5, peek().line);
         syntaxError("Expected type specifier");
+    }
     addEdge(node, tokenNode(tokens[current - 1]));
 
     if (!match(TOKEN_IDENTIFIER, NULL))

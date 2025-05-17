@@ -2,6 +2,7 @@
 #include <ctype.h>
 #include <string.h>
 #include "lexer.h"
+#include "suggest.h" 
 
 Token tokens[MAX_TOKENS];
 int tokenCount = 0;
@@ -61,8 +62,15 @@ void tokenize(const char *code)
             buffer[j] = '\0';
             if (isKeyword(buffer))
                 addTokenWithLine(TOKEN_KEYWORD, buffer, line);
-            else
+            else {
+                // Suggest possible correction for misspelled keywords
+                const char *expectedKeywords[] = {
+                    "int", "float", "char", "double", "void",
+                    "for", "while", "if", "else", "return"
+                };
+                suggestKeyword(buffer, expectedKeywords, 10, line);
                 addTokenWithLine(TOKEN_IDENTIFIER, buffer, line);
+            }
         }
         else if (isdigit(code[i]))
         {

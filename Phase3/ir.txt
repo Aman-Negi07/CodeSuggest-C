@@ -30,3 +30,6 @@ i = i + 1
 goto L5
 L7:
 return d
+t3 = d + 1
+d = t3
+return d

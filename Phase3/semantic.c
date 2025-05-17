@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "semantic.h"
+#include "suggest.h"
 
 #define MAX_SYMBOLS 100
 
@@ -59,6 +60,11 @@ void checkSemantics(Token tokens[], int count)
             {
                 declare(tokens[i + 1].value);
             }
+        }
+        // Suggest correction for possible misspelled keywords
+        else if (tokens[i].type == TOKEN_KEYWORD) {
+            const char *expectedKeywords[] = {"int", "float"};
+            suggestKeyword(tokens[i].value, expectedKeywords, 2, tokens[i].line);
         }
 
         // Variable usage
