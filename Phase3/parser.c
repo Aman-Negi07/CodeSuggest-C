@@ -54,32 +54,46 @@ int tokenNode(Token token)
 int expr()
 {
     int node = newNode("expr");
+    
+    // Handle first term (identifier or number or string)
     if (peek().type == TOKEN_IDENTIFIER)
     {
         addEdge(node, tokenNode(tokens[current]));
         current++;
-        if (peek().type == TOKEN_ASSIGN)
-        {
-            addEdge(node, tokenNode(tokens[current]));
-            current++;
-            addEdge(node, expr());
-        }
-        else if (peek().type == TOKEN_OPERATOR)
-        {
-            addEdge(node, tokenNode(tokens[current]));
-            current++;
-            addEdge(node, expr());
-        }
     }
     else if (peek().type == TOKEN_NUMBER)
     {
         addEdge(node, tokenNode(tokens[current]));
         current++;
     }
+    else if (peek().type == TOKEN_STRING)
+    {
+        addEdge(node, tokenNode(tokens[current]));
+        current++;
+    }
     else
     {
-        syntaxError("Expected identifier or number in expression");
+        syntaxError("Expected identifier, number, or string in expression");
     }
+    
+    // Handle operator followed by another term if present
+    if (peek().type == TOKEN_OPERATOR || peek().type == TOKEN_ASSIGN)
+    {
+        addEdge(node, tokenNode(tokens[current])); // Add operator
+        current++;
+        
+        // Parse the right side of the expression
+        if (peek().type == TOKEN_IDENTIFIER || peek().type == TOKEN_NUMBER || peek().type == TOKEN_STRING)
+        {
+            addEdge(node, tokenNode(tokens[current]));
+            current++;
+        }
+        else
+        {
+            syntaxError("Expected identifier, number, or string after operator");
+        }
+    }
+    
     return node;
 }
 

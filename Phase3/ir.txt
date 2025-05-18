@@ -1,35 +1,9 @@
-j = 99
-a = 5
-b = 10
-c = 1
-t0 = a + b
-t1 = t0 + c
-d = t1
-if d > 10 goto L0
-goto L1
+i = 0
 L0:
-d = d - 5
+if i < 10 goto L1
 goto L2
 L1:
-t2 = d + 5
-d = t2
-L2:
-if d < 20 goto L3
-goto L4
-L3:
-d = d + 1
-goto L2
-L4:
-i = 0
-L5:
-if i < 5 goto L6
-goto L7
-L6:
-d = d + 1
 i = i + 1
-goto L5
-L7:
-return d
-t3 = d + 1
-d = t3
-return d
+goto L0
+L2:
+return 0

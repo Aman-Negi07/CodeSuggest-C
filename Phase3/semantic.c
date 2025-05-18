@@ -9,6 +9,7 @@
 typedef struct
 {
     char name[64];
+    char type[10];  // Store the type of the variable (int, float, etc.)
 } Symbol;
 
 Symbol symbolTable[MAX_SYMBOLS];
@@ -22,14 +23,24 @@ int isDeclared(const char *name)
     return 0;
 }
 
-void declare(const char *name)
+int getVariableType(const char *name)
+{
+    for (int i = 0; i < symbolCount; ++i)
+        if (strcmp(symbolTable[i].name, name) == 0)
+            return i;
+    return -1;
+}
+
+void declare(const char *name, const char *type)
 {
     if (isDeclared(name))
     {
         printf("Semantic Error: Redeclaration of variable '%s'\n", name);
         exit(1);
     }
-    strcpy(symbolTable[symbolCount++].name, name);
+    strcpy(symbolTable[symbolCount].name, name);
+    strcpy(symbolTable[symbolCount].type, type);
+    symbolCount++;
 }
 
 void checkSemantics(Token tokens[], int count)
@@ -58,7 +69,7 @@ void checkSemantics(Token tokens[], int count)
             if (tokens[i + 1].type == TOKEN_IDENTIFIER &&
                 (i == 0 || strcmp(tokens[i - 1].value, "return") != 0))
             {
-                declare(tokens[i + 1].value);
+                declare(tokens[i + 1].value, tokens[i].value);
             }
         }
         // Suggest correction for possible misspelled keywords
@@ -75,6 +86,37 @@ void checkSemantics(Token tokens[], int count)
             {
                 printf("Semantic Error: Undeclared variable '%s'\n", tokens[i].value);
                 exit(1);
+            }
+        }
+
+        // Type checking for assignments
+        if (i >= 2 && tokens[i-1].type == TOKEN_ASSIGN && tokens[i-2].type == TOKEN_IDENTIFIER)
+        {
+            int varIndex = getVariableType(tokens[i-2].value);
+            if (varIndex >= 0)
+            {
+                // Check for type compatibility
+                if (strcmp(symbolTable[varIndex].type, "int") == 0)
+                {
+                    if (tokens[i].type == TOKEN_STRING)
+                    {
+                        printf("Semantic Error: Type mismatch - cannot assign string to int variable '%s' (line %d)\n",
+                            tokens[i-2].value, tokens[i].line);
+                        exit(1);
+                    }
+                }
+            }
+        }
+
+        // Check for divide by zero
+        if (i < count - 2 && tokens[i + 1].type == TOKEN_OPERATOR && strcmp(tokens[i + 1].value, "/") == 0) {
+            if (tokens[i + 2].type == TOKEN_NUMBER && strcmp(tokens[i + 2].value, "0") == 0) {
+                printf("Semantic Error: Division by zero at line %d\n", tokens[i].line);
+                exit(1);
+            } else if (tokens[i + 2].type == TOKEN_IDENTIFIER) {
+                // For variables, we can only warn as we don't know the runtime value
+                printf("Warning: Potential division by zero at line %d - check that '%s' is not zero\n", 
+                       tokens[i].line, tokens[i + 2].value);
             }
         }
 
