@@ -4,30 +4,27 @@ int main()
     int b;
     int d;
     int c;
-    faolt j;
+    float j;
     int i;
-    chur k;
+    char k;
 
     j=99;
     a = 5;
     b = 10;
     c = 1;
-    d = a + b + c;
+    d = a + b ;
 
-    fi (d > 10)
+    if (d > 10)
     {
         d = d - 5;
     }
-    elue
+    else
     {
         d = d + 5;
     }
-    whale (d < 20)
+    while (d < 20)
     {
         d = d + 1;
     }
-    fir( i=0;i<5;i=i+1){
-        d=d+1;
-    }
-    retmrn d;
+    return d;
 }

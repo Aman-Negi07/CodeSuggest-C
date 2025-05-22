@@ -1,9 +1,23 @@
-i = 0
+j = 99
+a = 5
+b = 10
+c = 1
+t0 = a + b
+d = t0
+if d > 10 goto L0
+goto L1
 L0:
-if i < 10 goto L1
+d = d - 5
 goto L2
 L1:
-i = i + 1
-goto L0
+t1 = d + 5
+d = t1
 L2:
-return 0
+if d < 20 goto L3
+goto L4
+L3:
+d = d + 1
+goto L2
+L4:
+return d
+return d
