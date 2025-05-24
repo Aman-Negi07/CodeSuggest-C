@@ -154,6 +154,7 @@ void tokenize(const char *code)
         }
     }
     addTokenWithLine(TOKEN_EOF, "EOF", line);
+    
 }
 
 const char *getTokenTypeName(TokenType type)

@@ -19,6 +19,118 @@ const char *newTempVar(char *buffer)
     return buffer;
 }
 
+// Helper function to get operator precedence
+int precedence(const char *op)
+{
+    if (strcmp(op, "*") == 0 || strcmp(op, "/") == 0)
+        return 2;
+    if (strcmp(op, "+") == 0 || strcmp(op, "-") == 0)
+        return 1;
+    return 0;
+}
+
+// Process an expression with proper operator precedence
+void processExpression(FILE *out, Token tokens[], int *i, int count, const char *lhs, char *resultVar)
+{
+    char opStack[100][10];
+    char valStack[100][64];
+    int opTop = -1, valTop = -1;
+    char tempVarBuffer[10];
+
+    while (*i < count && tokens[*i].type != TOKEN_SEMICOLON &&
+           tokens[*i].type != TOKEN_RPAREN && tokens[*i].type != TOKEN_RBRACE)
+    {
+        // Handle values (identifiers or numbers)
+        if (tokens[*i].type == TOKEN_IDENTIFIER || tokens[*i].type == TOKEN_NUMBER)
+        {
+            valTop++;
+            strcpy(valStack[valTop], tokens[*i].value);
+            (*i)++;
+        }
+        // Handle operators
+        else if (tokens[*i].type == TOKEN_OPERATOR)
+        {
+            while (opTop >= 0 && precedence(tokens[*i].value) <= precedence(opStack[opTop]))
+            {
+                // Pop operator and operands
+                char op[10], op1[64], op2[64], tempVar[10];
+                strcpy(op, opStack[opTop--]);
+                strcpy(op2, valStack[valTop--]);
+                strcpy(op1, valStack[valTop--]);
+
+                // Generate temporary variable
+                const char *temp = newTempVar(tempVar);
+                fprintf(out, "%s = %s %s %s\n", temp, op1, op, op2);
+
+                // Push result back
+                valTop++;
+                strcpy(valStack[valTop], temp);
+            }
+            opTop++;
+            strcpy(opStack[opTop], tokens[*i].value);
+            (*i)++;
+        }
+        // Handle parentheses
+        else if (tokens[*i].type == TOKEN_LPAREN)
+        {
+            opTop++;
+            strcpy(opStack[opTop], "(");
+            (*i)++;
+        }
+        else if (tokens[*i].type == TOKEN_RPAREN)
+        {
+            while (opTop >= 0 && strcmp(opStack[opTop], "(") != 0)
+            {
+                char op[10], op1[64], op2[64], tempVar[10];
+                strcpy(op, opStack[opTop--]);
+                strcpy(op2, valStack[valTop--]);
+                strcpy(op1, valStack[valTop--]);
+
+                const char *temp = newTempVar(tempVar);
+                fprintf(out, "%s = %s %s %s\n", temp, op1, op, op2);
+
+                valTop++;
+                strcpy(valStack[valTop], temp);
+            }
+            if (opTop >= 0 && strcmp(opStack[opTop], "(") == 0)
+                opTop--; // Pop the '('
+            (*i)++;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    // Process remaining operators
+    while (opTop >= 0)
+    {
+        char op[10], op1[64], op2[64], tempVar[10];
+        strcpy(op, opStack[opTop--]);
+        strcpy(op2, valStack[valTop--]);
+        strcpy(op1, valStack[valTop--]);
+
+        const char *temp = newTempVar(tempVar);
+        fprintf(out, "%s = %s %s %s\n", temp, op1, op, op2);
+
+        valTop++;
+        strcpy(valStack[valTop], temp);
+    }
+
+    // Final assignment
+    if (valTop == 0)
+    {
+        if (lhs != NULL)
+        {
+            fprintf(out, "%s = %s\n", lhs, valStack[valTop]);
+        }
+        if (resultVar != NULL)
+        {
+            strcpy(resultVar, valStack[valTop]);
+        }
+    }
+}
+
 void generateIR(Token tokens[], int count)
 {
     FILE *out = fopen("ir.txt", "w");
@@ -31,6 +143,7 @@ void generateIR(Token tokens[], int count)
     int i = 0;
     char labelBuffer[10];
     char tempVarBuffer[10];
+    static int returnEmitted = 0;
 
     while (i < count)
     {
@@ -42,35 +155,17 @@ void generateIR(Token tokens[], int count)
             i += 3;
         }
 
-        // Handle assignments: a = b + c + d;
+        // Handle assignments: a = b + c * d;
         else if (tokens[i].type == TOKEN_IDENTIFIER &&
                  tokens[i + 1].type == TOKEN_ASSIGN)
         {
-            char lhs[64], op1[64], op2[64], operator[4];
+            char lhs[64];
             strcpy(lhs, tokens[i].value);
             i += 2; // Skip 'a' and '='
+            char condResult[64];
+            processExpression(out, tokens, &i, count, lhs, condResult);
 
-            // Handle complex expressions
-            strcpy(op1, tokens[i].value);
-            i++;
-
-            while (tokens[i].type == TOKEN_OPERATOR)
-            {
-                strcpy(operator, tokens[i].value);
-                i++;
-                strcpy(op2, tokens[i].value);
-                i++;
-
-                // Generate a temporary variable for intermediate results
-                const char *tempVar = newTempVar(tempVarBuffer);
-                fprintf(out, "%s = %s %s %s\n", tempVar, op1, operator, op2);
-                strcpy(op1, tempVar); // Use the result as the next operand
-            }
-
-            // Final assignment to the left-hand side
-            fprintf(out, "%s = %s\n", lhs, op1);
-
-            // Ensure we skip the semicolon
+            // Skip semicolon if present
             if (tokens[i].type == TOKEN_SEMICOLON)
             {
                 i++;
@@ -85,16 +180,26 @@ void generateIR(Token tokens[], int count)
             newLabel(Lfalse);
 
             // if (condition)
-            if (tokens[i + 1].type == TOKEN_LPAREN &&
-                (tokens[i + 2].type == TOKEN_IDENTIFIER || tokens[i + 2].type == TOKEN_NUMBER) &&
-                tokens[i + 3].type == TOKEN_OPERATOR &&
-                (tokens[i + 4].type == TOKEN_IDENTIFIER || tokens[i + 4].type == TOKEN_NUMBER) &&
-                tokens[i + 5].type == TOKEN_RPAREN)
+            if (tokens[i + 1].type == TOKEN_LPAREN)
             {
-                fprintf(out, "if %s %s %s goto %s\n", tokens[i + 2].value, tokens[i + 3].value, tokens[i + 4].value, Ltrue);
-                fprintf(out, "goto %s\n", Lfalse);
-                fprintf(out, "%s:\n", Ltrue);
-                i += 6;
+                i += 2; // Skip 'if' and '('
+
+                char condResult[64];
+                processExpression(out, tokens, &i, count, NULL, condResult);
+
+                if (tokens[i].type == TOKEN_RPAREN)
+                {
+                    // fprintf(out, "if %s goto %s\n", valStack[valTop], Ltrue);
+                    fprintf(out, "if %s goto %s\n", condResult, Ltrue);
+                    fprintf(out, "goto %s\n", Lfalse);
+                    fprintf(out, "%s:\n", Ltrue);
+                    i++; // Skip ')'
+                }
+                else
+                {
+                    printf("Error: Missing ')' in if condition\n");
+                    break;
+                }
 
                 // Parse if block
                 if (tokens[i].type == TOKEN_LBRACE)
@@ -104,31 +209,12 @@ void generateIR(Token tokens[], int count)
                     {
                         // Recursively handle statements inside the block
                         if (tokens[i].type == TOKEN_IDENTIFIER &&
-                            tokens[i + 1].type == TOKEN_ASSIGN &&
-                            (tokens[i + 2].type == TOKEN_IDENTIFIER || tokens[i + 2].type == TOKEN_NUMBER))
+                            tokens[i + 1].type == TOKEN_ASSIGN)
                         {
-                            char lhs[64], op1[64], op2[64], operator[4];
+                            char lhs[64];
                             strcpy(lhs, tokens[i].value);
-                            strcpy(op1, tokens[i + 2].value);
-
-                            if (tokens[i + 3].type == TOKEN_OPERATOR &&
-                                (tokens[i + 4].type == TOKEN_IDENTIFIER || tokens[i + 4].type == TOKEN_NUMBER) &&
-                                tokens[i + 5].type == TOKEN_SEMICOLON)
-                            {
-                                strcpy(operator, tokens[i + 3].value);
-                                strcpy(op2, tokens[i + 4].value);
-                                fprintf(out, "%s = %s %s %s\n", lhs, op1, operator, op2);
-                                i += 6;
-                            }
-                            else if (tokens[i + 3].type == TOKEN_SEMICOLON)
-                            {
-                                fprintf(out, "%s = %s\n", lhs, op1);
-                                i += 4;
-                            }
-                            else
-                            {
-                                i++;
-                            }
+                            i += 2; // Skip identifier and '='
+                            processExpression(out, tokens, &i, count, lhs, condResult);
                         }
                         else
                         {
@@ -153,16 +239,26 @@ void generateIR(Token tokens[], int count)
             fprintf(out, "%s:\n", Lbegin);
 
             // Parse while condition
-            if (tokens[i + 1].type == TOKEN_LPAREN &&
-                (tokens[i + 2].type == TOKEN_IDENTIFIER || tokens[i + 2].type == TOKEN_NUMBER) &&
-                tokens[i + 3].type == TOKEN_OPERATOR &&
-                (tokens[i + 4].type == TOKEN_IDENTIFIER || tokens[i + 4].type == TOKEN_NUMBER) &&
-                tokens[i + 5].type == TOKEN_RPAREN)
+            if (tokens[i + 1].type == TOKEN_LPAREN)
             {
-                fprintf(out, "if %s %s %s goto %s\n", tokens[i + 2].value, tokens[i + 3].value, tokens[i + 4].value, Lbody);
-                fprintf(out, "goto %s\n", Lend);
-                fprintf(out, "%s:\n", Lbody);
-                i += 6;
+                i += 2; // Skip 'while' and '('
+
+                char condResult[64];
+                processExpression(out, tokens, &i, count, NULL, condResult);
+
+                if (tokens[i].type == TOKEN_RPAREN)
+                {
+                    // fprintf(out, "if %s goto %s\n", valStack[valTop], Lbody);
+                    fprintf(out, "if %s goto %s\n", condResult, Lbody);
+                    fprintf(out, "goto %s\n", Lend);
+                    fprintf(out, "%s:\n", Lbody);
+                    i++; // Skip ')'
+                }
+                else
+                {
+                    printf("Error: Missing ')' in while condition\n");
+                    break;
+                }
 
                 // Parse while block
                 if (tokens[i].type == TOKEN_LBRACE)
@@ -172,31 +268,12 @@ void generateIR(Token tokens[], int count)
                     {
                         // Recursively handle statements inside the block
                         if (tokens[i].type == TOKEN_IDENTIFIER &&
-                            tokens[i + 1].type == TOKEN_ASSIGN &&
-                            (tokens[i + 2].type == TOKEN_IDENTIFIER || tokens[i + 2].type == TOKEN_NUMBER))
+                            tokens[i + 1].type == TOKEN_ASSIGN)
                         {
-                            char lhs[64], op1[64], op2[64], operator[4];
+                            char lhs[64];
                             strcpy(lhs, tokens[i].value);
-                            strcpy(op1, tokens[i + 2].value);
-
-                            if (tokens[i + 3].type == TOKEN_OPERATOR &&
-                                (tokens[i + 4].type == TOKEN_IDENTIFIER || tokens[i + 4].type == TOKEN_NUMBER) &&
-                                tokens[i + 5].type == TOKEN_SEMICOLON)
-                            {
-                                strcpy(operator, tokens[i + 3].value);
-                                strcpy(op2, tokens[i + 4].value);
-                                fprintf(out, "%s = %s %s %s\n", lhs, op1, operator, op2);
-                                i += 6;
-                            }
-                            else if (tokens[i + 3].type == TOKEN_SEMICOLON)
-                            {
-                                fprintf(out, "%s = %s\n", lhs, op1);
-                                i += 4;
-                            }
-                            else
-                            {
-                                i++;
-                            }
+                            i += 2; // Skip identifier and '='
+                            processExpression(out, tokens, &i, count, lhs, condResult);
                         }
                         else
                         {
@@ -210,144 +287,114 @@ void generateIR(Token tokens[], int count)
                 fprintf(out, "%s:\n", Lend);
             }
         }
-        
-        // ...existing code...
-
-// Handle for loop
-else if (tokens[i].type == TOKEN_KEYWORD && strcmp(tokens[i].value, "for") == 0)
-{
-    char Lbegin[10], Lbody[10], Lend[10];
-    newLabel(Lbegin);
-    newLabel(Lbody);
-    newLabel(Lend);
-
-    // for (init; cond; incr)
-    int j = i + 2; // Skip 'for' and '('
-
-    // Parse initialization (e.g., i = 0;)
-    if (tokens[j].type == TOKEN_IDENTIFIER && tokens[j+1].type == TOKEN_ASSIGN)
-    {
-        fprintf(out, "%s = %s\n", tokens[j].value, tokens[j+2].value);
-        j += 4; // Skip to after first semicolon
-    }
-    else if (tokens[j].type == TOKEN_SEMICOLON)
-    {
-        j++; // No initialization
-    }
-
-    fprintf(out, "%s:\n", Lbegin);
-
-    // Parse condition (e.g., i < 10;)
-    if ((tokens[j].type == TOKEN_IDENTIFIER || tokens[j].type == TOKEN_NUMBER) &&
-        tokens[j+1].type == TOKEN_OPERATOR &&
-        (tokens[j+2].type == TOKEN_IDENTIFIER || tokens[j+2].type == TOKEN_NUMBER))
-    {
-        fprintf(out, "if %s %s %s goto %s\n", tokens[j].value, tokens[j+1].value, tokens[j+2].value, Lbody);
-        fprintf(out, "goto %s\n", Lend);
-        j += 3;
-    }
-    if (tokens[j].type == TOKEN_SEMICOLON)
-        j++;
-
-    // Save increment start for later
-    int incrStart = j;
-    while (tokens[j].type != TOKEN_RPAREN && j < count)
-        j++;
-    int incrEnd = j;
-
-    if (tokens[j].type == TOKEN_RPAREN)
-        j++;
-
-    fprintf(out, "%s:\n", Lbody);
-
-    // Parse for block
-    if (tokens[j].type == TOKEN_LBRACE)
-    {
-        j++;
-        while (tokens[j].type != TOKEN_RBRACE && j < count)
+        else if (tokens[i].type == TOKEN_KEYWORD && strcmp(tokens[i].value, "for") == 0)
         {
-            // You can recursively call generateIR for the body if you modularize it,
-            // or copy your assignment/statement handling here.
-            // For simplicity, let's handle assignments:
-            if (tokens[j].type == TOKEN_IDENTIFIER && tokens[j+1].type == TOKEN_ASSIGN)
-            {
-                char lhs[64], op1[64], op2[64], operator[4];
-                strcpy(lhs, tokens[j].value);
-                strcpy(op1, tokens[j+2].value);
+            char Lbegin[10], Lcond[10], Lbody[10], Lend[10];
+            newLabel(Lbegin);
+            newLabel(Lcond);
+            newLabel(Lbody);
+            newLabel(Lend);
 
-                if (tokens[j+3].type == TOKEN_OPERATOR &&
-                    (tokens[j+4].type == TOKEN_IDENTIFIER || tokens[j+4].type == TOKEN_NUMBER) &&
-                    tokens[j+5].type == TOKEN_SEMICOLON)
-                {
-                    strcpy(operator, tokens[j+3].value);
-                    strcpy(op2, tokens[j+4].value);
-                    fprintf(out, "%s = %s %s %s\n", lhs, op1, operator, op2);
-                    j += 6;
-                }
-                else if (tokens[j+3].type == TOKEN_SEMICOLON)
-                {
-                    fprintf(out, "%s = %s\n", lhs, op1);
-                    j += 4;
-                }
-                else
-                {
-                    j++;
-                }
-            }
-            else
+            // Match '('
+            if (tokens[i + 1].type == TOKEN_LPAREN)
             {
-                j++;
+                i += 2; // skip 'for' and '('
+
+                // 1. Initialization (a = 0;)
+                if (tokens[i].type == TOKEN_IDENTIFIER &&
+                    tokens[i + 1].type == TOKEN_ASSIGN)
+                {
+                    char lhs[64];
+                    strcpy(lhs, tokens[i].value);
+                    i += 2; // skip identifier and '='
+                    processExpression(out, tokens, &i, count, lhs, NULL);
+                    if (tokens[i].type == TOKEN_SEMICOLON)
+                        i++;
+                }
+
+                fprintf(out, "%s:\n", Lcond);
+
+                // 2. Condition (i < 10;)
+                char condResult[64] = "1"; // Default to true if no condition
+                if (tokens[i].type != TOKEN_SEMICOLON)
+                {
+                    processExpression(out, tokens, &i, count, NULL, condResult);
+                }
+
+                if (tokens[i].type == TOKEN_SEMICOLON)
+                    i++;
+
+                fprintf(out, "if %s goto %s\n", condResult, Lbody);
+                fprintf(out, "goto %s\n", Lend);
+
+                fprintf(out, "%s:\n", Lbody);
+
+                // Save increment expression start
+                int incrementStart = i;
+
+                // Skip increment expression for now
+                while (tokens[i].type != TOKEN_RPAREN && i < count)
+                    i++;
+                i++; // skip ')'
+
+                // 3. Loop body
+                if (tokens[i].type == TOKEN_LBRACE)
+                {
+                    i++;
+                    while (tokens[i].type != TOKEN_RBRACE && i < count)
+                    {
+                        if (tokens[i].type == TOKEN_IDENTIFIER &&
+                            tokens[i + 1].type == TOKEN_ASSIGN)
+                        {
+                            char lhs[64];
+                            strcpy(lhs, tokens[i].value);
+                            i += 2;
+                            processExpression(out, tokens, &i, count, lhs, NULL);
+                            if (tokens[i].type == TOKEN_SEMICOLON)
+                                i++;
+                        }
+                        else
+                        {
+                            i++;
+                        }
+                    }
+                    i++; // skip '}'
+                }
+
+                // 4. Emit increment expression
+                fprintf(out, "%s:\n", Lbegin);
+                int tempI = incrementStart;
+                while (tokens[tempI].type != TOKEN_RPAREN && tempI < count)
+                {
+                    if (tokens[tempI].type == TOKEN_IDENTIFIER &&
+                        tokens[tempI + 1].type == TOKEN_ASSIGN)
+                    {
+                        char lhs[64];
+                        strcpy(lhs, tokens[tempI].value);
+                        tempI += 2;
+                        processExpression(out, tokens, &tempI, count, lhs, NULL);
+                        if (tokens[tempI].type == TOKEN_SEMICOLON)
+                            tempI++;
+                    }
+                    else
+                    {
+                        tempI++;
+                    }
+                }
+
+                fprintf(out, "goto %s\n", Lcond);
+                fprintf(out, "%s:\n", Lend);
             }
         }
-        j++; // skip }
-    }
-
-    // Handle increment (e.g., i = i + 1)
-    int k = incrStart;
-    while (k < incrEnd)
-    {
-        if (tokens[k].type == TOKEN_IDENTIFIER && tokens[k+1].type == TOKEN_ASSIGN)
-        {
-            char lhs[64], op1[64], op2[64], operator[4];
-            strcpy(lhs, tokens[k].value);
-            strcpy(op1, tokens[k+2].value);
-
-            if (tokens[k+3].type == TOKEN_OPERATOR &&
-                (tokens[k+4].type == TOKEN_IDENTIFIER || tokens[k+4].type == TOKEN_NUMBER))
-            {
-                strcpy(operator, tokens[k+3].value);
-                strcpy(op2, tokens[k+4].value);
-                fprintf(out, "%s = %s %s %s\n", lhs, op1, operator, op2);
-                k += 5;
-            }
-            else
-            {
-                fprintf(out, "%s = %s\n", lhs, op1);
-                k += 3;
-            }
-        }
-        else
-        {
-            k++;
-        }
-    }
-
-    fprintf(out, "goto %s\n", Lbegin);
-    fprintf(out, "%s:\n", Lend);
-
-    i = j;
-}
-
-// ...existing code...
 
         // Handle return statement
-        else if (tokens[i].type == TOKEN_KEYWORD && strcmp(tokens[i].value, "return") == 0 &&
+        else if (!returnEmitted && tokens[i].type == TOKEN_KEYWORD && strcmp(tokens[i].value, "return") == 0 &&
                  (tokens[i + 1].type == TOKEN_IDENTIFIER || tokens[i + 1].type == TOKEN_NUMBER))
         {
             fprintf(out, "return %s\n", tokens[i + 1].value);
+            returnEmitted = 1;
             i += 3;
         }
-
 
         else
         {

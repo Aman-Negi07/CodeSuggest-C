@@ -12,7 +12,7 @@ int main()
     a = 5;
     b = 10;
     c = 1;
-    d = a + b ;
+    d = a + b + c ;
 
     if (d > 10)
     {
@@ -25,6 +25,10 @@ int main()
     while (d < 20)
     {
         d = d + 1;
+    }
+
+    for(i=0;i<5;i=i+1){
+        d=d+1;
     }
     return d;
 }

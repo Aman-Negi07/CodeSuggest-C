@@ -51,49 +51,39 @@ int tokenNode(Token token)
     return newNode(label);
 }
 
+// In parser.c, update the expr() function:
 int expr()
 {
     int node = newNode("expr");
-    
-    // Handle first term (identifier or number or string)
-    if (peek().type == TOKEN_IDENTIFIER)
+
+    // First term
+    if (peek().type == TOKEN_IDENTIFIER || peek().type == TOKEN_NUMBER)
     {
         addEdge(node, tokenNode(tokens[current]));
         current++;
     }
-    else if (peek().type == TOKEN_NUMBER)
+    else if (peek().type == TOKEN_LPAREN)
     {
-        addEdge(node, tokenNode(tokens[current]));
+        addEdge(node, tokenNode(tokens[current])); // Add '('
         current++;
-    }
-    else if (peek().type == TOKEN_STRING)
-    {
-        addEdge(node, tokenNode(tokens[current]));
-        current++;
+        addEdge(node, expr()); // Parse inner expression
+        if (!match(TOKEN_RPAREN, NULL))
+            syntaxError("Expected ')'");
+        addEdge(node, tokenNode(tokens[current - 1])); // Add ')'
     }
     else
     {
-        syntaxError("Expected identifier, number, or string in expression");
+        syntaxError("Expected identifier, number, or '('");
     }
-    
-    // Handle operator followed by another term if present
-    if (peek().type == TOKEN_OPERATOR || peek().type == TOKEN_ASSIGN)
+
+    // Handle operators and subsequent terms
+    while (peek().type == TOKEN_OPERATOR)
     {
         addEdge(node, tokenNode(tokens[current])); // Add operator
         current++;
-        
-        // Parse the right side of the expression
-        if (peek().type == TOKEN_IDENTIFIER || peek().type == TOKEN_NUMBER || peek().type == TOKEN_STRING)
-        {
-            addEdge(node, tokenNode(tokens[current]));
-            current++;
-        }
-        else
-        {
-            syntaxError("Expected identifier, number, or string after operator");
-        }
+        addEdge(node, expr()); // Parse right side
     }
-    
+
     return node;
 }
 
@@ -104,7 +94,8 @@ int decl()
           match(TOKEN_KEYWORD, "float") ||
           match(TOKEN_KEYWORD, "char") ||
           match(TOKEN_KEYWORD, "double") ||
-          match(TOKEN_KEYWORD, "void"))) {
+          match(TOKEN_KEYWORD, "void")))
+    {
         // Suggest possible correction
         const char *expectedKeywords[] = {"int", "float", "char", "double", "void"};
         suggestKeyword(peek().value, expectedKeywords, 5, peek().line);
@@ -126,7 +117,7 @@ int decl()
 int stmt()
 {
     int node = newNode("stmt");
-    
+
     if (match(TOKEN_IDENTIFIER, NULL)) // Handle assignment statements
     {
         addEdge(node, tokenNode(tokens[current - 1])); // Add the identifier node
@@ -190,47 +181,68 @@ int stmt()
         addEdge(node, block()); // Parse the block after the 'while'
     }
     else if (match(TOKEN_KEYWORD, "for"))
-{
-    addEdge(node, tokenNode(tokens[current - 1]));
-
-    if (!match(TOKEN_LPAREN, NULL))
-        syntaxError("Expected '(' after 'for'");
-    addEdge(node, tokenNode(tokens[current - 1]));
-
-    // Parse initialization (can be a declaration or assignment)
-    if (peek().type == TOKEN_KEYWORD &&
-        (strcmp(peek().value, "int") == 0 ||
-         strcmp(peek().value, "float") == 0 ||
-         strcmp(peek().value, "char") == 0 ||
-         strcmp(peek().value, "double") == 0 ||
-         strcmp(peek().value, "void") == 0))
     {
-        addEdge(node, decl());
-    }
-    else if (peek().type == TOKEN_IDENTIFIER)
-    {
-        addEdge(node, stmt());
-    }
-    else if (!match(TOKEN_SEMICOLON, NULL))
-    {
-        syntaxError("Expected initialization or ';' in for loop");
-    }
+        addEdge(node, tokenNode(tokens[current - 1]));
 
-    // Parse condition
-    if (peek().type != TOKEN_SEMICOLON)
-        addEdge(node, expr());
-    if (!match(TOKEN_SEMICOLON, NULL))
-        syntaxError("Expected ';' after for loop condition");
+        if (!match(TOKEN_LPAREN, NULL))
+            syntaxError("Expected '(' after 'for'");
+        addEdge(node, tokenNode(tokens[current - 1]));
 
-    // Parse increment
-    if (peek().type != TOKEN_RPAREN)
-        addEdge(node, expr());
-    if (!match(TOKEN_RPAREN, NULL))
-        syntaxError("Expected ')' after for loop increment");
+        // Parse initialization (can be a declaration or assignment)
+        if (peek().type == TOKEN_KEYWORD &&
+            (strcmp(peek().value, "int") == 0 ||
+             strcmp(peek().value, "float") == 0 ||
+             strcmp(peek().value, "char") == 0 ||
+             strcmp(peek().value, "double") == 0 ||
+             strcmp(peek().value, "void") == 0))
+        {
+            addEdge(node, decl());
+        }
+        else if (peek().type == TOKEN_IDENTIFIER)
+        {
+            addEdge(node, stmt());
+        }
+        else if (!match(TOKEN_SEMICOLON, NULL))
+        {
+            syntaxError("Expected initialization or ';' in for loop");
+        }
 
-    addEdge(node, tokenNode(tokens[current - 1]));
-    addEdge(node, block());
-}
+        // Parse condition
+        if (peek().type != TOKEN_SEMICOLON)
+            addEdge(node, expr());
+        if (!match(TOKEN_SEMICOLON, NULL))
+            syntaxError("Expected ';' after for loop condition");
+
+        // Parse increment
+        // if (peek().type != TOKEN_RPAREN)
+        //     addEdge(node, expr());
+        // if (!match(TOKEN_RPAREN, NULL))
+        //     syntaxError("Expected ')' after for loop increment");
+        // NEW CODE: handle assignment OR empty increment
+        if (peek().type == TOKEN_IDENTIFIER)
+        {
+            // Parse assignment manually
+            addEdge(node, tokenNode(tokens[current++])); // identifier
+
+            if (!match(TOKEN_ASSIGN, NULL))
+                syntaxError("Expected '=' in for loop increment");
+
+            addEdge(node, tokenNode(tokens[current - 1])); // '='
+            addEdge(node, expr());                         // Right-hand expression
+        }
+        else if (peek().type != TOKEN_RPAREN)
+        {
+            syntaxError("Expected assignment or ')' in for loop increment");
+        }
+
+        if (!match(TOKEN_RPAREN, NULL))
+            syntaxError("Expected ')' after for loop increment");
+
+        // addEdge(node, tokenNode(tokens[current - 1]));
+
+        addEdge(node, tokenNode(tokens[current - 1]));
+        addEdge(node, block());
+    }
     else
     {
         syntaxError("Unknown statement");
@@ -248,11 +260,11 @@ int block()
 
     // Parse declarations inside the block
     while (peek().type == TOKEN_KEYWORD &&
-          (strcmp(peek().value, "int") == 0 ||
-           strcmp(peek().value, "float") == 0 ||
-           strcmp(peek().value, "char") == 0 ||
-           strcmp(peek().value, "double") == 0 ||
-           strcmp(peek().value, "void") == 0))
+           (strcmp(peek().value, "int") == 0 ||
+            strcmp(peek().value, "float") == 0 ||
+            strcmp(peek().value, "char") == 0 ||
+            strcmp(peek().value, "double") == 0 ||
+            strcmp(peek().value, "void") == 0))
     {
         addEdge(node, decl());
     }
@@ -279,7 +291,8 @@ int func_def()
           match(TOKEN_KEYWORD, "float") ||
           match(TOKEN_KEYWORD, "char") ||
           match(TOKEN_KEYWORD, "double") ||
-          match(TOKEN_KEYWORD, "void"))) {
+          match(TOKEN_KEYWORD, "void")))
+    {
         // Suggest possible correction
         const char *expectedKeywords[] = {"int", "float", "char", "double", "void"};
         suggestKeyword(peek().value, expectedKeywords, 5, peek().line);
@@ -295,8 +308,28 @@ int func_def()
         syntaxError("Expected '('");
     addEdge(node, tokenNode(tokens[current - 1]));
 
+    // if (!match(TOKEN_RPAREN, NULL))
+    //     syntaxError("Expected ')'");
+    // Optional: handle parameter list (e.g., int x)
+    if (peek().type == TOKEN_KEYWORD &&
+        (strcmp(peek().value, "int") == 0 || strcmp(peek().value, "float") == 0 ||
+         strcmp(peek().value, "char") == 0 || strcmp(peek().value, "double") == 0))
+    {
+        // type
+        addEdge(node, tokenNode(tokens[current++]));
+
+        // identifier
+        if (!match(TOKEN_IDENTIFIER, NULL))
+            syntaxError("Expected parameter name");
+
+        addEdge(node, tokenNode(tokens[current - 1]));
+    }
+
+    // Match closing parenthesis
     if (!match(TOKEN_RPAREN, NULL))
         syntaxError("Expected ')'");
+    //addEdge(node, tokenNode(tokens[current - 1]));
+
     addEdge(node, tokenNode(tokens[current - 1]));
 
     addEdge(node, block());
@@ -307,12 +340,12 @@ int func_def()
 int func_def_list()
 {
     int node = newNode("func_def_list");
-     while (peek().type == TOKEN_KEYWORD &&
-          (strcmp(peek().value, "int") == 0 ||
-           strcmp(peek().value, "float") == 0 ||
-           strcmp(peek().value, "char") == 0 ||
-           strcmp(peek().value, "double") == 0 ||
-           strcmp(peek().value, "void") == 0))
+    while (peek().type == TOKEN_KEYWORD &&
+           (strcmp(peek().value, "int") == 0 ||
+            strcmp(peek().value, "float") == 0 ||
+            strcmp(peek().value, "char") == 0 ||
+            strcmp(peek().value, "double") == 0 ||
+            strcmp(peek().value, "void") == 0))
     {
         addEdge(node, func_def());
     }
