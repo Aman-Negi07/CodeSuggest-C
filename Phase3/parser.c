@@ -57,7 +57,7 @@ int expr()
     int node = newNode("expr");
 
     // First term
-    if (peek().type == TOKEN_IDENTIFIER || peek().type == TOKEN_NUMBER)
+    if (peek().type == TOKEN_IDENTIFIER || peek().type == TOKEN_NUMBER || peek().type == TOKEN_STRING)
     {
         addEdge(node, tokenNode(tokens[current]));
         current++;

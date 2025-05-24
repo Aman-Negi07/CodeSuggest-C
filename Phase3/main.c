@@ -17,7 +17,8 @@ int main()
     }
 
     char code[MAX_CODE_SIZE];
-    fread(code, 1, MAX_CODE_SIZE, file);
+    size_t bytesRead = fread(code, 1, MAX_CODE_SIZE - 1, file);
+    code[bytesRead] = '\0'; // Null-terminate the buffer
     fclose(file);
 
     tokenize(code);

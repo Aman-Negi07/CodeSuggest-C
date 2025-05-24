@@ -1,42 +1,36 @@
-j = 99
-a = 5
-b = 10
-c = 1
+h = 9
+a = 3.2
+b = 4.4
 t0 = a + b
-t1 = t0 + c
-d = t1
-t2 = d > 10
-if t2 goto L0
+c = t0
+t1 = h < 8
+if t1 goto L0
 goto L1
 L0:
-t3 = d - 5
-d = t3
+t2 = h + 1
+h = t2
 goto L2
 L1:
-t4 = d + 5
-d = t4
 L2:
-t5 = d < 20
-if t5 goto L3
+t3 = h < 8
+if t3 goto L3
 goto L4
 L3:
-t6 = d + 1
-d = t6
+t4 = h + 32
+h = t4
 goto L2
 L4:
-i = 0
+h = 0
 L6:
-t7 = i < 5
-if t7 goto L7
+t5 = h < 77
+if t5 goto L7
 goto L8
 L7:
-t8 = d + 1
-d = t8
+t6 = h + 1
+h = t6
 L5:
-t9 = i + 1
-i = t9
+t7 = h + 1
+h = t7
 goto L6
 L8:
-return d
-t10 = d + 1
-d = t10
+return 1

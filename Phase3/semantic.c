@@ -90,6 +90,8 @@ void checkSemantics(Token tokens[], int count)
         }
 
         // Type checking for assignments
+        // ...existing code...
+        // Type checking for assignments
         if (i >= 2 && tokens[i-1].type == TOKEN_ASSIGN && tokens[i-2].type == TOKEN_IDENTIFIER)
         {
             int varIndex = getVariableType(tokens[i-2].value);
@@ -105,8 +107,19 @@ void checkSemantics(Token tokens[], int count)
                         exit(1);
                     }
                 }
+                else if (strcmp(symbolTable[varIndex].type, "float") == 0)
+                {
+                    if (tokens[i].type == TOKEN_STRING)
+                    {
+                        printf("Semantic Error: Type mismatch - cannot assign string to float variable '%s' (line %d)\n",
+                            tokens[i-2].value, tokens[i].line);
+                        exit(1);
+                    }
+                    // Optionally, you can add more checks for float compatibility here
+                }
             }
         }
+// ...existing code...
 
         // Check for divide by zero
         if (i < count - 2 && tokens[i + 1].type == TOKEN_OPERATOR && strcmp(tokens[i + 1].value, "/") == 0) {

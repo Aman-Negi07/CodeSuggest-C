@@ -15,13 +15,13 @@ char *trim(char *str) {
 void generateTargetCode(const char *irFile, const char *targetFile) {
     FILE *ir = fopen(irFile, "r");
     if (!ir) {
-        perror("❌ Failed to open IR file");
+        perror(" Failed to open IR file");
         return;
     }
 
     FILE *target = fopen(targetFile, "w");
     if (!target) {
-        perror("❌ Failed to open Target file");
+        perror(" Failed to open Target file");
         fclose(ir);
         return;
     }
@@ -134,11 +134,11 @@ void generateTargetCode(const char *irFile, const char *targetFile) {
         } else if (line[0] == 'L') {
             fprintf(target, "%s:\n", line);  // Write label line (with colon)
         } else {
-            fprintf(stderr, "⚠️ Skipped unrecognized line: %s\n", line);
+            fprintf(stderr, "Skipped unrecognized line: %s\n", line);
         }
     }
 
     fclose(ir);
     fclose(target);
-    printf("✅ Target code generated at: %s\n", targetFile);
+    printf(" Target code generated at: %s\n", targetFile);
 }

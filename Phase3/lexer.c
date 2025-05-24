@@ -38,6 +38,7 @@ void addTokenWithLine(TokenType type, const char *value, int line)
 
 void tokenize(const char *code)
 {
+    
     int i = 0;
     int line = 1; // Initialize line number
     while (code[i])
@@ -76,8 +77,13 @@ void tokenize(const char *code)
         {
             char buffer[64];
             int j = 0;
-            while (isdigit(code[i]))
+            int hasDot = 0;
+            while (isdigit(code[i]) || (code[i] == '.' && !hasDot))
+            {
+                if (code[i] == '.')
+                    hasDot = 1;
                 buffer[j++] = code[i++];
+            }
             buffer[j] = '\0';
             addTokenWithLine(TOKEN_NUMBER, buffer, line);
         }
