@@ -4,6 +4,7 @@
 #include "parser.h"
 #include "semantic.h"
 #include "ir.h"
+#include "tcg.h" 
 #define MAX_CODE_SIZE 10000
 
 int main()
@@ -26,5 +27,7 @@ int main()
     checkSemantics(tokens, tokenCount);
 
     generateIR(tokens, tokenCount);
+    generateTargetCode("ir.txt", "targetCode.txt"); // Call to the new target code generation function
+    printf("Target Code generation completed successfully.\n");
     return 0;
 }
