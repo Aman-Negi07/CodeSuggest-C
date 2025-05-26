@@ -21,12 +21,6 @@ int isKeyword(const char *str)
     return 0;
 }
 
-void addToken(TokenType type, const char *value)
-{
-    tokens[tokenCount].type = type;
-    strcpy(tokens[tokenCount].value, value);
-    tokenCount++;
-}
 
 void addTokenWithLine(TokenType type, const char *value, int line)
 {
@@ -106,7 +100,7 @@ void tokenize(const char *code)
                 
             addTokenWithLine(TOKEN_STRING, buffer, line);
         }
-        else if (code[i] == '=') // Handle '=' as TOKEN_ASSIGN
+        else if (code[i] == '=' && code[i+1]!='=') 
         {
             addTokenWithLine(TOKEN_ASSIGN, "=", line);
             i++;
