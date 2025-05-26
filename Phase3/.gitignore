@@ -1,0 +1,10 @@
+compiler.exe
+compiler
+ir.txt
+lexer.exe
+main.exe
+mycc.exe
+targetCode.txt
+tokens.txt
+tree.dot
+tests

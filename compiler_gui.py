@@ -38,7 +38,7 @@ class CompilerGUI(tk.Tk):
         self.token_text = self._add_tab('Tokens', self.tabs)
         self.ir_text = self._add_tab('IR', self.tabs)
         self.target_text = self._add_tab('Target Code', self.tabs)
-        self.error_text = self._add_tab('Errors', self.tabs)
+        self.error_text = self._add_tab('Output', self.tabs)
 
     def _add_tab(self, title, notebook):
         frame = ttk.Frame(notebook)

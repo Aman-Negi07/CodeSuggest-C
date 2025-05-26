@@ -30,12 +30,6 @@ Token Type: IDENTIFIER, Value: b
 Token Type: ASSIGN, Value: =
 Token Type: NUMBER, Value: 4.4
 Token Type: SEMICOLON, Value: ;
-Token Type: IDENTIFIER, Value: h
-Token Type: ASSIGN, Value: =
-Token Type: NUMBER, Value: 4
-Token Type: OPERATOR, Value: /
-Token Type: NUMBER, Value: 0
-Token Type: SEMICOLON, Value: ;
 Token Type: IDENTIFIER, Value: c
 Token Type: ASSIGN, Value: =
 Token Type: IDENTIFIER, Value: a
