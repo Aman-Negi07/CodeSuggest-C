@@ -1,6 +1,6 @@
 int main(){
     float a;
-    float b;
+    float b!;
     float c;
     int h;
     int k;
