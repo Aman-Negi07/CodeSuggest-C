@@ -2,7 +2,6 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import subprocess
 import os
-from PIL import Image, ImageTk
 
 # Paths (adjust if needed)
 PHASE3_DIR = os.path.join(os.path.dirname(__file__), 'Phase3')
@@ -40,7 +39,7 @@ class CompilerGUI(tk.Tk):
         self.ir_text = self._add_tab('IR', self.tabs)
         self.target_text = self._add_tab('Target Code', self.tabs)
         self.error_text = self._add_tab('Output', self.tabs)
-        self.tree_image_label = self._add_image_tab('Parse Tree', self.tabs)
+        # Removed Parse Tree tab
 
     def _add_tab(self, title, notebook):
         frame = ttk.Frame(notebook)
@@ -48,13 +47,6 @@ class CompilerGUI(tk.Tk):
         text.pack(fill='both', expand=True)
         notebook.add(frame, text=title)
         return text
-
-    def _add_image_tab(self, title, notebook):
-        frame = ttk.Frame(notebook)
-        label = tk.Label(frame)
-        label.pack(fill='both', expand=True)
-        notebook.add(frame, text=title)
-        return label
 
     def load_input(self):
         try:
@@ -76,6 +68,13 @@ class CompilerGUI(tk.Tk):
 
     def compile_code(self):
         self.save_input()
+        # Delete previous output files
+        for f in [TOKENS_FILE, IR_FILE, TARGET_FILE]:
+            try:
+                if os.path.exists(f):
+                    os.remove(f)
+            except Exception as e:
+                print(f"Could not delete {f}: {e}")
         # Clear outputs
         for t in [self.token_text, self.ir_text, self.target_text, self.error_text]:
             t.delete('1.0', tk.END)
@@ -94,7 +93,7 @@ class CompilerGUI(tk.Tk):
         self._load_output(TOKENS_FILE, self.token_text)
         self._load_output(IR_FILE, self.ir_text)
         self._load_output(TARGET_FILE, self.target_text)
-        self._load_tree_image(os.path.join(PHASE3_DIR, 'tree.png'))
+        # Removed _load_tree_image call
 
     def _load_output(self, path, text_widget):
         try:
@@ -102,16 +101,6 @@ class CompilerGUI(tk.Tk):
                 text_widget.insert(tk.END, f.read())
         except Exception as e:
             text_widget.insert(tk.END, f'Could not load {os.path.basename(path)}:\n{e}')
-
-    def _load_tree_image(self, path):
-        try:
-            image = Image.open(path)
-            image = image.resize((800, 300), Image.Resampling.LANCZOS)
-            self.tree_img = ImageTk.PhotoImage(image)
-            self.tree_image_label.config(image=self.tree_img)
-            self.tree_image_label.image = self.tree_img
-        except Exception as e:
-            self.tree_image_label.config(text=f'Could not load tree.png:\n{e}')
 
 if __name__ == '__main__':
     app = CompilerGUI()
